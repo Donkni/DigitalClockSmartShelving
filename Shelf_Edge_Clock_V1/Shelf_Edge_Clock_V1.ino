@@ -42,11 +42,7 @@
 #include <Adafruit_NeoPixel.h>
 
 // include git ignored settings
-#include <wifiCreds.h>
-
-// User Config Variables
-const int sync_time = 120;     // Time in seconds to Sync NTP Time
-
+#include "wifiCreds.h"
 #define tzCount 24
 timeZones tzs[tzCount] = {
   {usPT, "Pacific"},    // LOCAL TIMEZONE
@@ -94,6 +90,9 @@ uint32_t clockHourColour;
 // Globals
 int loop_interval = 1000;
 
+// User Config Variables
+const int sync_time = 120;     // Time in seconds to Sync NTP Time
+
 // Which pin on the Arduino is connected to the NeoPixels?
 constexpr auto LEDCLOCK_PIN = 6;
 constexpr auto LEDDOWNLIGHT_PIN = 5;
@@ -101,7 +100,6 @@ constexpr auto LEDDOWNLIGHT_PIN = 5;
 // How many NeoPixels are attached to the Arduino?
 constexpr auto LEDCLOCK_COUNT = 207;
 constexpr auto LEDDOWNLIGHT_COUNT = 12;
-
 
 int clockFaceBrightness = 0;
 
@@ -201,8 +199,8 @@ void loop() {
 
 	stripClock.show();
 
-	//(red * 65536) + (green * 256) + blue ->for 32-bit merged colour value so 16777215 equals white
-	stripDownlighter.fill(16777215, 0, LEDDOWNLIGHT_COUNT);
+	// Set downlights to white
+	stripDownlighter.fill(stripDownlighter.Color(255, 255, 255), 0, LEDDOWNLIGHT_COUNT);
 	stripDownlighter.show();
 
 	delay(5000);   //this 5 second delay to slow things down during testing
@@ -219,7 +217,7 @@ void readTheTime() {
 	Serial.println("");
 
 	// buffer to store a text to display
-	char timeBuffer[32];
+	char timeBuffer[32]{};
 	sprintf(timeBuffer, "Time is: %2d:%02d:%02d", hour(MyDateAndTime), minute(MyDateAndTime), second(MyDateAndTime));
 	Serial.println(timeBuffer);
 	sprintf(timeBuffer, "Date is: %02d/%02d/%4d", month(MyDateAndTime), day(MyDateAndTime), year(MyDateAndTime));
