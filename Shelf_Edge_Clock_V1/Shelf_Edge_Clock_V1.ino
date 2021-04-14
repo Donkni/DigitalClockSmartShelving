@@ -16,7 +16,6 @@
 
   ==========
 
-
    SAY THANKS:
 
   Buy me a coffee to say thanks: https://ko-fi.com/diymachines
@@ -41,6 +40,9 @@
 
 // Includes for LED strip
 #include <Adafruit_NeoPixel.h>
+
+// include git ignored settings
+#include <wifiCreds.h>
 
 // User Config Variables
 const int sync_time = 120;     // Time in seconds to Sync NTP Time
@@ -88,9 +90,6 @@ time_t MyDateAndTime;
 // Color variables, assigned in setup()
 uint32_t clockMinuteColour;
 uint32_t clockHourColour;
-
-// Set WIFI SSID & Password from wifiCreds.h
-char ssid[] = "<your SSID>"; char pass[] = "<your password>";
 
 // Globals
 int loop_interval = 1000;
