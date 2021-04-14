@@ -39,6 +39,9 @@
 #include <Timezone.h>
 #include "timeRules.h"
 
+// Includes for LED strip
+#include <Adafruit_NeoPixel.h>
+
 // User Config Variables
 const int sync_time = 120;     // Time in seconds to Sync NTP Time
 
@@ -79,32 +82,27 @@ NTPClient timeClient(ntpUDP);
 // Function prototypes
 time_t syncNTPTime();
 
+// Create a variable to hold the time data
+time_t MyDateAndTime;
+
+// Color variables, assigned in setup()
+uint32_t clockMinuteColour;
+uint32_t clockHourColour;
+
 // Set WIFI SSID & Password from wifiCreds.h
 char ssid[] = "<your SSID>"; char pass[] = "<your password>";
 
 // Globals
 int loop_interval = 1000;
 
-#include <Adafruit_NeoPixel.h>
-#ifdef __AVR__
-#endif
-
-// Create a variable to hold the time data
-time_t MyDateAndTime;
-
 // Which pin on the Arduino is connected to the NeoPixels?
-#define LEDCLOCK_PIN        6
-#define LEDDOWNLIGHT_PIN    5
+constexpr auto LEDCLOCK_PIN = 6;
+constexpr auto LEDDOWNLIGHT_PIN = 5;
 
 // How many NeoPixels are attached to the Arduino?
-#define LEDCLOCK_COUNT      207
-#define LEDDOWNLIGHT_COUNT  12
+constexpr auto LEDCLOCK_COUNT = 207;
+constexpr auto LEDDOWNLIGHT_COUNT = 12;
 
-//(red * 65536) + (green * 256) + blue ->for 32-bit merged colour value so 16777215 equals white
-// or 3 hex byte 00 -> ff for RGB eg 0x123456 for red=12(hex) green=34(hex), and green=56(hex)
-// this hex method is the same as html colour codes just with "0x" instead of "#" in front
-uint32_t clockMinuteColour;
-uint32_t clockHourColour;
 
 int clockFaceBrightness = 0;
 
@@ -126,181 +124,181 @@ const int numReadings = 6;
 
 int readings[numReadings];      // the readings from the analog input
 int readIndex = 0;              // the index of the current reading
-long total = 0;                  // the running total
-long average = 0;                // the average
+long total = 0;                 // the running total
+long average = 0;               // the average
 
 void setup() {
-  Serial.begin(9600);
-  // Wifi Setup
-  WiFi.begin(ssid, pass);
-  Serial.print("Connecting to Wifi: ");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(5);
-    Serial.print(".");
-  }
-  Serial.println(" Connected!");
+	Serial.begin(9600);
+	// Wifi Setup
+	WiFi.begin(ssid, pass);
+	Serial.print("Connecting to Wifi: ");
+	while (WiFi.status() != WL_CONNECTED) {
+		delay(5);
+		Serial.print(".");
+	}
+	Serial.println(" Connected!");
 
-  // Time Setup
-  timeClient.begin(0);
-  setSyncProvider(syncNTPTime);
-  setSyncInterval(sync_time);
+	// Time Setup
+	timeClient.begin(0);
+	setSyncProvider(syncNTPTime);
+	setSyncInterval(sync_time);
 
-  stripClock.begin();           // INITIALIZE NeoPixel stripClock object (REQUIRED)
-  stripClock.show();            // Turn OFF all pixels ASAP
-  stripClock.setBrightness(100); // Set inital BRIGHTNESS (max = 255)
+	stripClock.begin();           // INITIALIZE NeoPixel stripClock object (REQUIRED)
+	stripClock.show();            // Turn OFF all pixels ASAP
+	stripClock.setBrightness(100); // Set inital BRIGHTNESS (max = 255)
 
-  stripDownlighter.begin();           // INITIALIZE NeoPixel stripClock object (REQUIRED)
-  stripDownlighter.show();            // Turn OFF all pixels ASAP
-  stripDownlighter.setBrightness(50); // Set BRIGHTNESS (max = 255)
+	stripDownlighter.begin();           // INITIALIZE NeoPixel stripClock object (REQUIRED)
+	stripDownlighter.show();            // Turn OFF all pixels ASAP
+	stripDownlighter.setBrightness(50); // Set BRIGHTNESS (max = 255)
 
-  //smoothing
-  // initialize all the readings to 0:
-  for (int thisReading = 0; thisReading < numReadings; thisReading++) {
-    readings[thisReading] = 0;
-  }
+	//smoothing
+	// initialize all the readings to 0:
+	for (int thisReading = 0; thisReading < numReadings; thisReading++) {
+		readings[thisReading] = 0;
+	}
 
-  clockMinuteColour  = stripClock.Color(148, 000, 211); // pure red
-  clockHourColour    = stripClock.Color(148, 000, 211); // pure green
+	clockMinuteColour = stripClock.Color(148, 000, 211); // pure red
+	clockHourColour = stripClock.Color(148, 000, 211); // pure green
 }
 
 void loop() {
-  //read the time
-  readTheTime();
+	//read the time
+	readTheTime();
 
-  //display the time on the LEDs
-  displayTheTime();
+	//display the time on the LEDs
+	displayTheTime();
 
-  //Record a reading from the light sensor and add it to the array
-  readings[readIndex] = analogRead(A0); //get an average light level from previouse set of samples
-  Serial.print("Light sensor value added to array = ");
-  Serial.println(readings[readIndex]);
-  readIndex = readIndex + 1; // advance to the next position in the array:
+	//Record a reading from the light sensor and add it to the array
+	readings[readIndex] = analogRead(A0); //get an average light level from previouse set of samples
+	Serial.print("Light sensor value added to array = ");
+	Serial.println(readings[readIndex]);
+	readIndex = readIndex + 1; // advance to the next position in the array:
 
-  // if we're at the end of the array move the index back around...
-  if (readIndex >= numReadings) {
-    // ...wrap around to the beginning:
-    readIndex = 0;
-  }
+	// if we're at the end of the array move the index back around...
+	if (readIndex >= numReadings) {
+		// ...wrap around to the beginning:
+		readIndex = 0;
+	}
 
-  //now work out the sum of all the values in the array
-  int sumBrightness = 0;
-  for (int i = 0; i < numReadings; i++)
-  {
-    sumBrightness += readings[i];
-  }
-  Serial.print("Sum of the brightness array = ");
-  Serial.println(sumBrightness);
+	//now work out the sum of all the values in the array
+	int sumBrightness = 0;
+	for (int i = 0; i < numReadings; i++)
+	{
+		sumBrightness += readings[i];
+	}
+	Serial.print("Sum of the brightness array = ");
+	Serial.println(sumBrightness);
 
-  // and calculate the average:
-  int lightSensorValue = sumBrightness / numReadings;
-  Serial.print("Average light sensor value = ");
-  Serial.println(lightSensorValue);
+	// and calculate the average:
+	int lightSensorValue = sumBrightness / numReadings;
+	Serial.print("Average light sensor value = ");
+	Serial.println(lightSensorValue);
 
-  //set the brightness based on ambiant light levels
-  clockFaceBrightness = map(lightSensorValue, 50, 1000, 200, 1);
-  stripClock.setBrightness(clockFaceBrightness); // Set brightness value of the LEDs
-  Serial.print("Mapped brightness value = ");
-  Serial.println(clockFaceBrightness);
+	//set the brightness based on ambiant light levels
+	clockFaceBrightness = map(lightSensorValue, 50, 1000, 200, 1);
+	stripClock.setBrightness(clockFaceBrightness); // Set brightness value of the LEDs
+	Serial.print("Mapped brightness value = ");
+	Serial.println(clockFaceBrightness);
 
-  stripClock.show();
+	stripClock.show();
 
-  //(red * 65536) + (green * 256) + blue ->for 32-bit merged colour value so 16777215 equals white
-  stripDownlighter.fill(16777215, 0, LEDDOWNLIGHT_COUNT);
-  stripDownlighter.show();
+	//(red * 65536) + (green * 256) + blue ->for 32-bit merged colour value so 16777215 equals white
+	stripDownlighter.fill(16777215, 0, LEDDOWNLIGHT_COUNT);
+	stripDownlighter.show();
 
-  delay(5000);   //this 5 second delay to slow things down during testing
+	delay(5000);   //this 5 second delay to slow things down during testing
 }
 
 void readTheTime() {
-  // Timezone Data
-  TimeChangeRule *tcr;
-  Timezone tz = tzs[0].tz;
-  time_t utc = now();
-  MyDateAndTime = tz.toLocal(utc, &tcr);
+	// Timezone Data
+	TimeChangeRule* tcr;
+	Timezone tz = tzs[0].tz;
+	time_t utc = now();
+	MyDateAndTime = tz.toLocal(utc, &tcr);
 
-  // And use it
-  Serial.println("");
+	// And use it
+	Serial.println("");
 
-  // buffer to store a text to display
-  char timeBuffer[32];
-  sprintf(timeBuffer, "Time is: %2d:%02d:%02d", hour(MyDateAndTime), minute(MyDateAndTime), second(MyDateAndTime));
-  Serial.println(timeBuffer);
-  sprintf(timeBuffer, "Date is: %02d/%02d/%4d", month(MyDateAndTime), day(MyDateAndTime), year(MyDateAndTime));
-  Serial.println(timeBuffer);
+	// buffer to store a text to display
+	char timeBuffer[32];
+	sprintf(timeBuffer, "Time is: %2d:%02d:%02d", hour(MyDateAndTime), minute(MyDateAndTime), second(MyDateAndTime));
+	Serial.println(timeBuffer);
+	sprintf(timeBuffer, "Date is: %02d/%02d/%4d", month(MyDateAndTime), day(MyDateAndTime), year(MyDateAndTime));
+	Serial.println(timeBuffer);
 }
 
 void displayTheTime() {
-  stripClock.clear(); //clear the clock face
-  
-  int firstMinuteDigit = minute(MyDateAndTime) % 10; //work out the value of the first digit and then display it
-  displayNumber(firstMinuteDigit, 0, clockMinuteColour);
+	stripClock.clear(); //clear the clock face
 
-  int secondMinuteDigit = floor(minute(MyDateAndTime) / 10); //work out the value for the second digit and then display it
-  displayNumber(secondMinuteDigit, 63, clockMinuteColour);
+	int firstMinuteDigit = minute(MyDateAndTime) % 10; //work out the value of the first digit and then display it
+	displayNumber(firstMinuteDigit, 0, clockMinuteColour);
 
-  int firstHourDigit = hour(MyDateAndTime); //work out the value for the third digit and then display it
-  if (firstHourDigit > 12) {
-    firstHourDigit = firstHourDigit - 12;
-  }
+	int secondMinuteDigit = floor(minute(MyDateAndTime) / 10); //work out the value for the second digit and then display it
+	displayNumber(secondMinuteDigit, 63, clockMinuteColour);
 
-  // Comment out the following three lines if you want midnight to be shown as 12:00 instead of 0:00
-  //  if (firstHourDigit == 0){
-  //    firstHourDigit = 12;
-  //  }
+	int firstHourDigit = hour(MyDateAndTime); //work out the value for the third digit and then display it
+	if (firstHourDigit > 12) {
+		firstHourDigit = firstHourDigit - 12;
+	}
 
-  firstHourDigit = firstHourDigit % 10;
-  displayNumber(firstHourDigit, 126, clockHourColour);
+	// Comment out the following three lines if you want midnight to be shown as 12:00 instead of 0:00
+	//  if (firstHourDigit == 0){
+	//    firstHourDigit = 12;
+	//  }
 
-  int secondHourDigit = hour(MyDateAndTime); //work out the value for the fourth digit and then display it
+	firstHourDigit = firstHourDigit % 10;
+	displayNumber(firstHourDigit, 126, clockHourColour);
 
-  // Comment out the following three lines if you want midnight to be shwon as 12:00 instead of 0:00
-  //  if (secondHourDigit == 0){
-  //    secondHourDigit = 12;
-  //  }
+	int secondHourDigit = hour(MyDateAndTime); //work out the value for the fourth digit and then display it
 
-  if (secondHourDigit > 12) {
-    secondHourDigit = secondHourDigit - 12;
-  }
-  if (secondHourDigit > 9) {
-    stripClock.fill(clockHourColour, 189, 18);
-  }
+	// Comment out the following three lines if you want midnight to be shwon as 12:00 instead of 0:00
+	//  if (secondHourDigit == 0){
+	//    secondHourDigit = 12;
+	//  }
+
+	if (secondHourDigit > 12) {
+		secondHourDigit = secondHourDigit - 12;
+	}
+	if (secondHourDigit > 9) {
+		stripClock.fill(clockHourColour, 189, 18);
+	}
 }
 
 void displayNumber(int digitToDisplay, int offsetBy, uint32_t colourToUse) {
-  switch (digitToDisplay) {
-    case 0:
-      digitZero(offsetBy, colourToUse);
-      break;
-    case 1:
-      digitOne(offsetBy, colourToUse);
-      break;
-    case 2:
-      digitTwo(offsetBy, colourToUse);
-      break;
-    case 3:
-      digitThree(offsetBy, colourToUse);
-      break;
-    case 4:
-      digitFour(offsetBy, colourToUse);
-      break;
-    case 5:
-      digitFive(offsetBy, colourToUse);
-      break;
-    case 6:
-      digitSix(offsetBy, colourToUse);
-      break;
-    case 7:
-      digitSeven(offsetBy, colourToUse);
-      break;
-    case 8:
-      digitEight(offsetBy, colourToUse);
-      break;
-    case 9:
-      digitNine(offsetBy, colourToUse);
-      break;
-    default:
-      break;
-  }
+	switch (digitToDisplay) {
+	case 0:
+		digitZero(offsetBy, colourToUse);
+		break;
+	case 1:
+		digitOne(offsetBy, colourToUse);
+		break;
+	case 2:
+		digitTwo(offsetBy, colourToUse);
+		break;
+	case 3:
+		digitThree(offsetBy, colourToUse);
+		break;
+	case 4:
+		digitFour(offsetBy, colourToUse);
+		break;
+	case 5:
+		digitFive(offsetBy, colourToUse);
+		break;
+	case 6:
+		digitSix(offsetBy, colourToUse);
+		break;
+	case 7:
+		digitSeven(offsetBy, colourToUse);
+		break;
+	case 8:
+		digitEight(offsetBy, colourToUse);
+		break;
+	case 9:
+		digitNine(offsetBy, colourToUse);
+		break;
+	default:
+		break;
+	}
 }
 
 /*
@@ -309,18 +307,18 @@ void displayNumber(int digitToDisplay, int offsetBy, uint32_t colourToUse) {
    Called as a callback on a timer every sync_time seconds.
    ========================================================================= */
 time_t syncNTPTime() {
-  unsigned long cur_time, update_time;
-  unsigned int drift_time;
-  cur_time = timeClient.getEpochTime();
-  timeClient.update();
-  update_time = timeClient.getEpochTime();
-  drift_time = (update_time - cur_time);
-  Serial.println("NTP Time Sync <=====================================");
-  Serial.print("NTP Epoch: "); Serial.println(timeClient.getEpochTime());
-  Serial.print("NTP Time : "); Serial.println(timeClient.getFormattedTime());
-  Serial.print("Epoch Pre Sync:  "); Serial.println(cur_time);
-  Serial.print("Epoch Post Sync: "); Serial.println(update_time);
-  Serial.print("Drift Correct:   "); Serial.println(drift_time);
+	unsigned long cur_time, update_time;
+	unsigned int drift_time;
+	cur_time = timeClient.getEpochTime();
+	timeClient.update();
+	update_time = timeClient.getEpochTime();
+	drift_time = (update_time - cur_time);
+	Serial.println("NTP Time Sync <=====================================");
+	Serial.print("NTP Epoch: "); Serial.println(timeClient.getEpochTime());
+	Serial.print("NTP Time : "); Serial.println(timeClient.getFormattedTime());
+	Serial.print("Epoch Pre Sync:  "); Serial.println(cur_time);
+	Serial.print("Epoch Post Sync: "); Serial.println(update_time);
+	Serial.print("Drift Correct:   "); Serial.println(drift_time);
 
-  return timeClient.getEpochTime();
+	return timeClient.getEpochTime();
 }
