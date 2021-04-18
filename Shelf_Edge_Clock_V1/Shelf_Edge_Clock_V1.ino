@@ -160,10 +160,12 @@ void setup() {
 
 void loop() {
 	//read the time
-	readTheTime();
+	String displayTime = readTheTime();
 
 	//display the time on the LEDs
-	displayTheTime();
+	if (displayTime != "") {
+		displayTheTime(displayTime);
+	}
 
 	//Record a reading from the light sensor and add it to the array
 	readings[readIndex] = analogRead(A0); //get an average light level from previouse set of samples
@@ -206,7 +208,8 @@ void loop() {
 	delay(5000);   //this 5 second delay to slow things down during testing
 }
 
-void readTheTime() {
+String lastDisplayTime;
+String readTheTime() {
 	// Timezone Data
 	TimeChangeRule* tcr;
 	Timezone tz = tzs[0].tz;
@@ -216,49 +219,55 @@ void readTheTime() {
 	// And use it
 	Serial.println("");
 
+	// hours calculation
+	int iHours = hour(MyDateAndTime); // offset to 12 hour clock
+	if (iHours > 12) {
+		iHours = iHours - 12;
+	}
+
+	if (iHours == 0) { // show midnight/noon as 12
+		iHours = 12;
+	}
+
+	String hours = "0" + String(iHours);
+	hours = hours.substring(hours.length() - 2, hours.length());
+
+	// minutes calculation
+	String minutes = "0" + String(minute(MyDateAndTime));
+	minutes = minutes.substring(minutes.length() - 2, minutes.length());
+
+	String displayTime = hours + minutes;
+	if (lastDisplayTime == displayTime) {
+		Serial.println("Time not changed: " + displayTime);
+		return "";
+	}
+	lastDisplayTime = displayTime;
+
 	// buffer to store a text to display
 	char timeBuffer[32]{};
 	sprintf(timeBuffer, "Time is: %2d:%02d:%02d", hour(MyDateAndTime), minute(MyDateAndTime), second(MyDateAndTime));
 	Serial.println(timeBuffer);
 	sprintf(timeBuffer, "Date is: %02d/%02d/%4d", month(MyDateAndTime), day(MyDateAndTime), year(MyDateAndTime));
 	Serial.println(timeBuffer);
+	return displayTime;
 }
 
-void displayTheTime() {
+void displayTheTime(String displayTime) {
+	int firstDigit = String(displayTime.charAt(0)).toInt();
+	int secondDigit = String(displayTime.charAt(1)).toInt();
+	int thirdDigit = String(displayTime.charAt(2)).toInt();
+	int fourthDigit = String(displayTime.charAt(3)).toInt();
+
 	stripClock.clear(); //clear the clock face
-
-	int firstMinuteDigit = minute(MyDateAndTime) % 10; //work out the value of the first digit and then display it
-	displayNumber(firstMinuteDigit, 0, clockMinuteColour);
-
-	int secondMinuteDigit = floor(minute(MyDateAndTime) / 10); //work out the value for the second digit and then display it
-	displayNumber(secondMinuteDigit, 63, clockMinuteColour);
-
-	int firstHourDigit = hour(MyDateAndTime); //work out the value for the third digit and then display it
-	if (firstHourDigit > 12) {
-		firstHourDigit = firstHourDigit - 12;
-	}
-
-	// Comment out the following three lines if you want midnight to be shown as 12:00 instead of 0:00
-	//  if (firstHourDigit == 0){
-	//    firstHourDigit = 12;
-	//  }
-
-	firstHourDigit = firstHourDigit % 10;
-	displayNumber(firstHourDigit, 126, clockHourColour);
-
-	int secondHourDigit = hour(MyDateAndTime); //work out the value for the fourth digit and then display it
-
-	// Comment out the following three lines if you want midnight to be shwon as 12:00 instead of 0:00
-	//  if (secondHourDigit == 0){
-	//    secondHourDigit = 12;
-	//  }
-
-	if (secondHourDigit > 12) {
-		secondHourDigit = secondHourDigit - 12;
-	}
-	if (secondHourDigit > 9) {
+	if (firstDigit == 1) {
 		stripClock.fill(clockHourColour, 189, 18);
 	}
+	displayNumber(secondDigit, 126, clockHourColour);
+	displayNumber(thirdDigit, 63, clockMinuteColour);
+	displayNumber(fourthDigit, 0, clockMinuteColour);
+
+	Serial.println("Raw " + displayTime);
+	Serial.println("Displaying " + String(firstDigit) + "." + String(secondDigit) + "." + String(thirdDigit) + "." + String(fourthDigit));
 }
 
 void displayNumber(int digitToDisplay, int offsetBy, uint32_t colourToUse) {
